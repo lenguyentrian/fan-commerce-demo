@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package fancommerce.v1;
+
+import "fancommerce/v1/common.proto";
+
+// Order service.
+//
+// The interesting part is Checkout: it carries the same idempotency key the
+// REST endpoint uses, for the same reason. A gRPC call that fails with
+// UNAVAILABLE or DEADLINE_EXCEEDED is retryable at the transport level, and a
+// retryable order-creating call without an idempotency key is a double charge
+// waiting to happen.
+service OrderService {
+  rpc Checkout(CheckoutRequest) returns (Order);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc GetOrder(GetOrderRequest) returns (Order);
+}
+
+enum PaymentMethod {
+  PAYMENT_METHOD_UNSPECIFIED = 0;
+  PAYMENT_METHOD_CARD = 1;
+  PAYMENT_METHOD_MOMO = 2;
+  PAYMENT_METHOD_VNPAY = 3;
+  PAYMENT_METHOD_COD = 4;
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1;
+  ORDER_STATUS_PAID = 2;
+  ORDER_STATUS_FAILED = 3;
+  ORDER_STATUS_CANCELLED = 4;
+  ORDER_STATUS_FULFILLED = 5;
+}
+
+message ShippingAddress {
+  string full_name = 1;
+  string phone = 2;
+  string line1 = 3;
+  string ward = 4;
+  string city = 5;
+  optional string note = 6;
+}
+
+message OrderLine {
+  string product_id = 1;
+  string variant_id = 2;
+  string slug = 3;
+  string name = 4;
+  string variant_label = 5;
+  string image_url = 6;
+  Money unit_price = 7;
+  int32 quantity = 8;
+}
+
+message CheckoutLine {
+  // Only these three are read by the server. Everything else about a line —
+  // price, name, image — is re-derived from the catalogue, exactly as the REST
+  // handler does. The client cannot name its own price over either transport.
+  string product_id = 1;
+  string variant_id = 2;
+  int32 quantity = 3;
+}
+
+message CheckoutRequest {
+  repeated CheckoutLine lines = 1;
+  optional string promo_code = 2;
+  PaymentMethod payment_method = 3;
+  ShippingAddress shipping_address = 4;
+
+  // Client-generated UUID. The server returns the existing order for a
+  // repeated key, scoped per authenticated user.
+  string idempotency_key = 5;
+}
+
+message Order {
+  string id = 1;
+  string code = 2;
+  string user_id = 3;
+  OrderStatus status = 4;
+
+  repeated OrderLine lines = 5;
+
+  Money subtotal = 6;
+  Money discount = 7;
+  Money shipping = 8;
+  Money total = 9;
+
+  optional string promo_code = 10;
+  PaymentMethod payment_method = 11;
+  ShippingAddress shipping_address = 12;
+
+  string created_at = 13; // RFC 3339
+}
+
+message ListOrdersRequest {
+  // Deliberately no user_id field. The caller's identity comes from the
+  // authenticated session in call metadata, never from the request body —
+  // otherwise the endpoint is an invitation to read someone else's orders.
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message ListOrdersResponse {
+  repeated Order items = 1;
+  string next_page_token = 2;
+  int32 total = 3;
+}
+
+message GetOrderRequest {
+  string order_id = 1;
+}

@@ -1,0 +1,85 @@
+---
+description: Next.js app conventions — rendering, state, route handlers
+globs: apps/web/**/*.ts,apps/web/**/*.tsx
+alwaysApply: false
+---
+
+# `apps/web` — Next.js App Router
+
+## Rendering strategy, and how to avoid wrecking it
+
+Current build output, which is the intended shape:
+
+| Route | Strategy | Why |
+| --- | --- | --- |
+| `/` | Static, `revalidate = 3600` | Catalogue changes rarely |
+| `/products/[slug]` | SSG via `generateStaticParams` | Small, stable catalogue |
+| `/cart` | Static shell | Cart lives in `localStorage` |
+| `/products` | Dynamic | Depends on `searchParams` |
+| `/checkout`, `/orders`, `/login` | Dynamic | Depends on the session |
+
+**Never call `cookies()` or `headers()` in `app/layout.tsx`.** It marks every
+route dynamic and silently converts the whole catalogue to per-request
+rendering. Session-dependent chrome goes in a client island — see
+`components/auth/auth-menu.tsx`.
+
+After touching rendering, run `npm run build` and read the route table. A `ƒ`
+where a `○` or `●` used to be is a regression.
+
+## Server Components by default
+
+Add `'use client'` only for state, effects, refs or browser APIs. Push it as far
+down the tree as possible: the product page is a Server Component with one
+client component (`AddToCart`) inside it, which is why the route ships very
+little JS.
+
+## Route handlers
+
+```ts
+export const POST = withErrorHandling(async (request: Request) => {
+  const user = await requireUser('fan');                       // authorize
+  rateLimit(clientKey(request, `thing:${user.id}`), limits.thing.max, limits.thing.windowMs);
+  const payload = await parseJsonBody(request, thingSchema);   // validate
+  return jsonOk(doThing(user, payload), { status: 201 });
+});
+```
+
+- `withErrorHandling` is mandatory — it maps `ApiError` and `ZodError` to
+  responses and stops raw errors reaching the client.
+- `requireUser()` on everything non-public. The proxy does not protect API
+  routes from direct calls.
+- Dynamic params and `searchParams` are Promises: `const { slug } = await params`.
+
+## Server state
+
+Server-side state shared between a route handler and a page render **must** be
+pinned to `globalThis` (see `server/orders.ts`). Next compiles handlers and pages
+into separate module graphs, so a module-scope `Map` exists twice and writes go
+to the copy the reader is not using. This fails silently.
+
+## Client state
+
+- Zustand, one store per concern (`store/cart-store.ts`, `store/session-store.ts`).
+- Stores hold state and surface errors. Rules stay in `@fc/core`; a store
+  action calls a pure function and stores the result.
+- Export narrow selector hooks. Components must not subscribe to the whole store.
+- A selector that constructs a new object re-renders forever under Zustand v5
+  (`Object.is` comparison). Memoize outside the selector — see `useCartTotals`.
+- Persisted state is untrusted: validate it in `merge` and fall back to a safe
+  default rather than crashing on a stale shape.
+- Hydration-sensitive reads use `useSyncExternalStore` with an explicit server
+  snapshot, not `useState` + `useEffect`.
+
+## Navigation after a session change
+
+Use `hardNavigate()` from `lib/navigation.ts` after login, logout and a
+successful checkout. The client router caches RSC payloads per route, including
+the proxy's redirect for a protected route, so a soft navigation can bounce a
+freshly-logged-in user back to `/login`. Never pair `router.refresh()` with
+`router.replace()` — the refresh cancels the navigation.
+
+## Styling
+
+Tailwind utilities, tokens from `@fc/ui/tokens.css`. Mobile-first. Prefer
+composing `@fc/ui` components over new one-off markup; if a pattern appears
+three times, move it into the design system.

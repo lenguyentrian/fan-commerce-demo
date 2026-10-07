@@ -1,0 +1,59 @@
+---
+description: Rules for the design system package
+globs: packages/ui/**/*.tsx,packages/ui/**/*.ts,packages/ui/**/*.css
+alwaysApply: false
+---
+
+# `@fc/ui` — design system
+
+Presentational components only. They take data and callbacks; they do not know
+where data comes from or where a click leads.
+
+## Forbidden here
+
+- `next/navigation`, `next/router`, `next/link` — a component that navigates
+  belongs in `apps/web`
+- `fetch`, any API client, any store
+- Business logic. Formatting is fine (`formatMoney`); deciding a discount is not
+- Imports from `@/` (the app)
+- Hardcoded colours. Use tokens: `var(--fc-text)`, `var(--fc-surface)`,
+  `brand-600`, `danger-500`. A hex literal in a component is a review failure
+
+ESLint enforces the first and fourth of these (`apps/web/eslint.config.mjs`).
+
+## Accessibility is part of the component, not a later pass
+
+Every interactive component ships with:
+- an accessible name — visible `<label>`, or `aria-label` when the control is
+  icon-only
+- keyboard operation, including Enter/Space where a native element would have it
+- a visible focus state (the global `:focus-visible` ring, or a `has-[...]`
+  variant when the real input is transparent)
+- state exposed to assistive tech: `aria-invalid`, `aria-busy`, `aria-current`,
+  `aria-describedby` wired to the error element
+- decorative SVGs marked `aria-hidden="true"` with `focusable="false"`
+
+Two patterns already settled, follow them rather than reinventing:
+- **Loading buttons** use `aria-busy` + `aria-disabled`, not the `disabled`
+  attribute, so the element keeps focus and the state change is announced.
+- **Visually hidden inputs** are transparent and full-size
+  (`absolute inset-0 opacity-0`), never `sr-only`. A clipped 1px control cannot
+  be clicked by a pointer or by Playwright.
+
+## Shape of a component
+
+```tsx
+export interface ThingProps {
+  value: Value;
+  onChange: (next: Value) => void;
+  className?: string;
+}
+
+export function Thing({ value, onChange, className }: ThingProps) { ... }
+```
+
+- Named exports only, re-exported from `src/index.ts` along with their prop type.
+- `className` last in the `clsx()` call so callers can override.
+- Polymorphic `as` props are restricted to a small union typed against
+  `HTMLAttributes<HTMLElement>`; full generic polymorphism leaks into every call
+  site (see the `Card` comment).

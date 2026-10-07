@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Typecheck on save",
+      "trigger": "PostFileSave",
+      "description": "Runs tsc across the workspace whenever a TypeScript file is saved, so a type break is caught at save time rather than at build time.",
+      "matcher": "\\.(ts|tsx)$",
+      "action": {
+        "type": "command",
+        "command": "cd \"$(git rev-parse --show-toplevel)\" && npm run typecheck --workspace @fc/web --silent",
+        "timeout": 90
+      }
+    }
+  ]
+}

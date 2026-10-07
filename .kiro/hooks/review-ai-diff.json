@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Review AI-written code before it lands",
+      "trigger": "PostToolUse",
+      "description": "After any file write or edit, re-apply the AI-output review checklist. This is the guardrail that makes agent-assisted changes safe to merge: generation is cheap, review is the part that catches plausible-but-wrong code.",
+      "matcher": "fs_write|str_replace|fs_append",
+      "action": {
+        "type": "agent",
+        "prompt": "Re-read the change you just made against .cursor/rules/50-review-ai-output.mdc. Check specifically: (1) is any price a bare number instead of Money from @fc/core, or is toFixed/parseFloat used in a calculation? (2) is any request body, API response or localStorage value used without a Zod parse, or cast with `as`? (3) does a new route handler skip requireUser()? (4) did a business rule land in a component or handler when it belongs in @fc/core? (5) is there a console.log, a leaked stack trace, or an error message that exposes internals? (6) does a new interactive element have an accessible name, keyboard support and a visible focus state? (7) does new behaviour have a test at the cheapest level that catches it, and did any existing assertion get weakened? If you find a problem, fix it now and say what you fixed. If the change is clean, say nothing further."
+      }
+    }
+  ]
+}

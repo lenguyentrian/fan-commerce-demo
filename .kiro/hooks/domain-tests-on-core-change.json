@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Domain tests on core change",
+      "trigger": "PostFileSave",
+      "description": "Runs the ~1s domain test suite whenever a rule in @fc/core changes, so pricing and cart regressions surface immediately.",
+      "matcher": "packages/core/src/.*\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "cd \"$(git rev-parse --show-toplevel)\" && npm run test:core --silent",
+        "timeout": 120
+      }
+    }
+  ]
+}

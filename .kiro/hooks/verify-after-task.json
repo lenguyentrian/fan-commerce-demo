@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Verify after a spec task",
+      "trigger": "PostTaskExec",
+      "description": "Runs the full gate (typecheck + unit tests + production build) after each completed spec task, so a task cannot be marked done on top of a broken tree.",
+      "action": {
+        "type": "command",
+        "command": "cd \"$(git rev-parse --show-toplevel)\" && npm run verify --silent",
+        "timeout": 600
+      }
+    }
+  ]
+}

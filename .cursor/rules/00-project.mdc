@@ -1,0 +1,56 @@
+---
+description: Project overview, layer boundaries and the rules that apply everywhere
+alwaysApply: true
+---
+
+# Fan Commerce — always-on rules
+
+A transactional product: merch, concert tickets, memberships. Money moves, so a
+pricing bug is a refund, not a repaint.
+
+Full brief: `AGENTS.md`. Architecture: `docs/ARCHITECTURE.md`. Known traps and
+why fixes look the way they do: `docs/DECISIONS.md`.
+
+## Layers, and what may import what
+
+```
+packages/core  →  (nothing)                    framework-free domain + contract
+packages/ui    →  @fc/core                     presentational design system
+apps/web       →  @fc/core, @fc/ui             pages, handlers, stores
+apps/mobile    →  (Dart port of core)          phase 2
+```
+
+Violations to refuse:
+- `@fc/core` importing React, Next, or a Node built-in.
+- `@fc/ui` importing `next/navigation`, fetching data, or holding business logic.
+- A business rule implemented in a component or route handler when it would also
+  be true in the mobile app.
+
+## Hard rules
+
+1. Money is `Money` from `@fc/core` — integer minor units + currency. No floats,
+   no `toFixed()` arithmetic, no bare `number` for a price.
+2. The server re-derives prices from the catalogue. A client-supplied
+   `unitPrice`, `name` or stock figure is a claim, not data.
+3. Parse untrusted input with Zod. `as` on a request body, an API response or a
+   `localStorage` blob is a bug.
+4. `requireUser()` in every non-public route handler and protected page. The
+   proxy is UX, not the security boundary.
+5. Order-creating mutations are idempotent on a client-supplied
+   `idempotencyKey`.
+6. Throw `ApiError(code, userSafeMessage)`. UI switches on `code`.
+7. Never log or return tokens, raw bodies or stack traces.
+
+## Style
+
+- `kebab-case` filenames; `PascalCase` components; `SCREAMING_SNAKE_CASE`
+  constants.
+- Comments say *why*, never *what*.
+- Smallest change that works. No speculative abstraction, no unrequested
+  refactor, no new dependency without a stated reason.
+
+## Definition of done
+
+`npm run verify` is green (typecheck + unit tests + build), plus
+`npm run test:e2e` if a journey, auth or the proxy was touched. Report any check
+that is still red rather than describing the work as finished.

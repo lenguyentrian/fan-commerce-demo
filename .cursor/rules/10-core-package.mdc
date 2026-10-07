@@ -1,0 +1,77 @@
+---
+description: Rules for the shared domain package
+globs: packages/core/**/*.ts
+alwaysApply: false
+---
+
+# `@fc/core` — the shared domain
+
+This package is the single source of truth for business rules, and it is the
+package that gets ported to Dart in phase 2. Both facts constrain it.
+
+## Allowed / forbidden
+
+Allowed: `zod`, plus standard web APIs that exist in every modern runtime
+(`fetch`, `Response`, `AbortController`, `Intl`, `crypto.randomUUID`).
+
+Forbidden, no exceptions:
+
+- `react`, `react-dom`, anything from `next/*`
+- Node built-ins (`node:crypto`, `node:fs`, ...) and Node-only globals
+  (`process`, `Buffer`) — password hashing and environment reading belong in
+  `apps/web/src/server`
+- Browser-only globals and types (`window`, `document`, `localStorage`,
+  `RequestCache`). This package compiles without the DOM lib, so these do not
+  even typecheck
+- Any import from `apps/`
+
+If a task seems to need one of these, the logic belongs in a different layer, or
+it should be injected as an option — see `onSchemaMismatch` on `ApiClient`,
+which exists precisely because "am I in development?" is the host's question to
+answer, not the domain's.
+
+The root `npm run typecheck` enforces the last two: it builds this package
+without the DOM lib, so a `window` reference or a browser-only type is a
+compile error rather than a code-review note.
+
+## How to write a rule here
+
+1. Pure function. Inputs in, value out. No mutation of arguments, no I/O, no
+   `Date.now()` read implicitly — take `now: Date = new Date()` as a parameter
+   so the behaviour is testable.
+2. Schema first. Define the Zod schema, then `z.infer` the type from it. Do not
+   hand-write an interface alongside a schema that can drift from it.
+3. Throw a typed error (`MoneyError`, `CartError`, `ApiError`) with a code, not
+   a bare `Error` with a sentence.
+4. Pin ordering that affects outcomes. `totals()` applies the discount _before_
+   deciding free shipping; that order is asserted by a test precisely because
+   it is invisible from the outside.
+
+## Money
+
+```ts
+money(450_000); // 450.000 VND — integer minor units
+multiply(price, quantity); // rounds half-up, deterministic across platforms
+add / subtract; // throw on mixed currencies
+formatMoney(value, locale); // display only, never for arithmetic
+```
+
+Never `0.1 + 0.2`. Never `Number(price).toFixed(2)` and then parse it back.
+
+## Tests
+
+Every exported function needs tests, in a sibling `*.test.ts`. Cover:
+
+- the happy path
+- each error branch, asserting the error **code**
+- boundary values (0, the per-line maximum, an empty list)
+- immutability — the input must be unchanged after the call
+
+Coverage thresholds are enforced (`jest.config.cjs`). Run with
+`npm run test:core`; it finishes in about a second, so run it on every edit.
+
+## Dart portability
+
+Keep the shape portable: plain functions over plain data, no cleverness that
+has no Dart equivalent. When adding a rule, the question to answer is "can this
+be transcribed into `packages/core_dart` test-for-test?" If not, simplify it.

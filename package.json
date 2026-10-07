@@ -1,0 +1,33 @@
+{
+  "name": "fan-commerce-demo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI-native reference monorepo: Next.js web app + shared TypeScript domain core, built with coding agents (Cursor / Copilot / Claude Code / Kiro). Flutter app planned as phase 2.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/web"
+  ],
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @fc/web",
+    "build": "npm run build --workspace @fc/web",
+    "start": "npm run start --workspace @fc/web",
+    "lint": "npm run lint:packages && npm run lint --workspace @fc/web",
+    "lint:packages": "eslint packages --max-warnings 0",
+    "typecheck": "tsc -b packages/core packages/ui apps/web --pretty",
+    "test": "npm run test --workspaces --if-present",
+    "test:core": "npm run test --workspace @fc/core",
+    "test:web": "npm run test --workspace @fc/web",
+    "test:e2e": "npm run test:e2e --workspace @fc/web",
+    "verify": "npm run typecheck && npm run test && npm run build",
+    "check:all": "bash scripts/final-check.sh"
+  },
+  "devDependencies": {
+    "eslint": "10.12.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1"
+  }
+}

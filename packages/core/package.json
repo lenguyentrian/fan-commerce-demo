@@ -1,0 +1,26 @@
+{
+  "name": "@fc/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-free domain + API contract shared by the Next.js web app and (phase 2) the Flutter app.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "jest --config jest.config.cjs",
+    "test:cov": "jest --config jest.config.cjs --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/jest": "30.0.0",
+    "@types/node": "26.6.4",
+    "jest": "30.5.2",
+    "ts-jest": "29.4.14",
+    "typescript": "5.9.3"
+  }
+}

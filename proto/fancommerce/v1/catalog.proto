@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package fancommerce.v1;
+
+// Catalogue service.
+//
+// This is the gRPC expression of the same contract the REST handlers serve
+// today (see packages/core/src/api/contract.ts). Keeping it in the repository
+// means the move to gRPC is a transport change, not a redesign — the domain
+// types and the error codes already line up.
+
+import "fancommerce/v1/common.proto";
+
+service CatalogService {
+  // Unary: the common case.
+  rpc GetProduct(GetProductRequest) returns (Product);
+
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+
+  // Server streaming: a large catalogue delivered in chunks, so a mobile
+  // client can render the first screen without waiting for the whole page.
+  rpc StreamProducts(ListProductsRequest) returns (stream Product);
+}
+
+enum ProductKind {
+  // proto3 requires a zero value, and it must mean "unset" — never a real
+  // member of the set, or an absent field silently becomes a valid value.
+  PRODUCT_KIND_UNSPECIFIED = 0;
+  PRODUCT_KIND_MERCH = 1;
+  PRODUCT_KIND_TICKET = 2;
+  PRODUCT_KIND_MEMBERSHIP = 3;
+  PRODUCT_KIND_DIGITAL = 4;
+}
+
+message ProductVariant {
+  string id = 1;
+  string label = 2;
+
+  // Absent means "not tracked" (digital goods). Zero means sold out.
+  // A bare int32 cannot express that difference in proto3, which is why this
+  // is explicitly optional.
+  optional int32 stock = 3;
+}
+
+message Product {
+  string id = 1;
+  string slug = 2;
+  string name = 3;
+  ProductKind kind = 4;
+  string artist = 5;
+  string summary = 6;
+  string description = 7;
+
+  Money price = 8;
+  optional Money compare_at_price = 9;
+
+  string image_url = 10;
+  string image_alt = 11;
+
+  repeated string tags = 12;
+  repeated ProductVariant variants = 13;
+
+  optional double rating = 14;
+  string released_at = 15; // RFC 3339
+}
+
+message GetProductRequest {
+  string slug = 1;
+}
+
+message ListProductsRequest {
+  optional ProductKind kind = 1;
+  optional string query = 2;
+
+  // Page-token pagination rather than offsets: an offset shifts when the
+  // catalogue changes mid-browse, which duplicates or skips items.
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListProductsResponse {
+  repeated Product items = 1;
+  string next_page_token = 2;
+  int32 total = 3;
+}

@@ -1,0 +1,65 @@
+---
+description: Testing rules — levels, tools and what makes a test worth keeping
+globs: **/*.test.ts,**/*.test.tsx,apps/web/e2e/**/*.ts
+alwaysApply: false
+---
+
+# Testing
+
+## Pick the cheapest level that can catch the bug
+
+| Level | Tool | Location | Runtime |
+| --- | --- | --- | --- |
+| Domain | Jest, node env | `packages/core/src/**/*.test.ts` | ~1s |
+| Component / store | Jest + RTL, jsdom | `apps/web/src/**/*.test.tsx` | ~2s |
+| Server module | Jest, node env (`@jest-environment node` docblock) | `apps/web/src/server/**/*.test.ts` | ~2s |
+| Journey | Playwright | `apps/web/e2e/**/*.spec.ts` | ~15s |
+
+A pricing rule tested through the browser is a slow test of the wrong thing.
+Test the rule in `@fc/core` and let the journey test assert that the number
+reaches the screen.
+
+## Rules
+
+- A bug fix ships with a test that fails before the fix. No exceptions.
+- Assert behaviour, not implementation. Query by role and accessible name
+  (`getByRole('button', { name: 'Thêm vào giỏ' })`), never by class name, never
+  with a snapshot.
+- Assert error **codes**, not messages. Messages are copy and will change.
+- Never weaken an assertion to go green. If the test and the code disagree, say
+  which one you believe is wrong and why.
+- No `waitForTimeout` as a synchronisation device. Wait for a URL, a response or
+  an element. (`expect.poll` is fine for a value that settles.)
+- Tests must not depend on each other's order or leftovers.
+
+## jsdom gotchas, already solved
+
+- `jose` is ESM-only and needs WebCrypto: server tests that touch sessions use
+  the `@jest-environment node` docblock. `jose` is in `transpilePackages`, which
+  is where `next/jest` derives `transformIgnorePatterns` from.
+- `jest.setup.ts` runs in both environments, so every `window` stub is guarded.
+- `window.location` is non-configurable in current jsdom. Full-document
+  navigation goes through `lib/navigation.ts` so tests mock one module instead.
+
+## Playwright specifics
+
+- Runs against `next start` (a production build), not `next dev` — dev-mode
+  timing hides hydration and caching bugs.
+- Two projects: `chromium` and `mobile-safari`. A commerce checkout breaks on a
+  390px viewport first.
+- Required fields have a visually hidden `(bắt buộc)` suffix, so their
+  accessible name is `"Địa chỉ (bắt buộc)"`. Use anchored regexes:
+  `getByLabel(/^Địa chỉ/)`.
+- Every spec signs in as the same demo account and the order store is per-user,
+  so a parallel run leaves several orders on the page. Scope assertions to the
+  order just placed (see the `placedOrder` helper).
+- `page.request` shares the browser's cookies; the bare `request` fixture does
+  not. Use the bare fixture to prove an endpoint rejects anonymous callers, and
+  `page.request` to call it as the signed-in user.
+- Rate limits are env-configurable so the suite does not trip the shipped
+  login limit. The limiter itself is unit-tested with its own ceiling.
+
+## Coverage
+
+Enforced in `packages/core` (statements 80, branches 75). Treated as a floor,
+not a target — a test that exists only to move the number is worse than no test.

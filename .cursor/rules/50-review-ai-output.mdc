@@ -1,0 +1,80 @@
+---
+description: Checklist for reviewing AI-generated code before it is merged
+alwaysApply: true
+---
+
+# Reviewing AI-generated code
+
+Generation is the cheap part. This list is the expensive part, and it is the
+reason agent-assisted work in this repo is safe to merge.
+
+Run through it on your own output before reporting a task as done.
+
+## 1. Correctness of the money path
+
+- [ ] Any price is `Money` (integer minor units), not a `number`
+- [ ] No `toFixed()`, `parseFloat()` or `/ 100` inside a calculation
+- [ ] Totals are derived by `totals()` in `@fc/core`, not recomputed inline
+- [ ] The server re-derives prices from the catalogue; nothing trusts the client
+
+## 2. Trust boundaries
+
+- [ ] Every request body / query string / external response is Zod-parsed
+- [ ] No `as` on untrusted data
+- [ ] New route handler calls `requireUser()` unless it is genuinely public
+- [ ] An order-creating mutation is idempotent on a key
+- [ ] Nothing new is read from or written to `localStorage` without validation
+
+## 3. Leaks
+
+- [ ] No token, secret, raw body or stack trace in a log or a response
+- [ ] No `console.log` left behind
+- [ ] Error messages shown to users say what to do, not what broke internally
+- [ ] No hardcoded credential, endpoint or key — config comes from env
+
+## 4. Layering
+
+- [ ] A rule that would also be true on mobile lives in `@fc/core`
+- [ ] `@fc/ui` gained no routing, fetching or business logic
+- [ ] `@fc/core` gained no React / Next / Node import
+- [ ] No new barrel file, no deep import into another package's `src`
+
+## 5. React and Next specifics
+
+- [ ] `'use client'` only where genuinely needed, and as low in the tree as possible
+- [ ] No `cookies()` / `headers()` added to the root layout
+- [ ] `npm run build` still shows `○`/`●` for the catalogue routes
+- [ ] No Zustand selector that constructs a new object
+- [ ] Effects have correct dependencies and no `setState` in the body
+- [ ] Keys on lists are stable ids, not array indices
+
+## 6. Accessibility
+
+- [ ] Interactive elements have accessible names and keyboard support
+- [ ] Errors are wired with `aria-describedby` + `role="alert"`
+- [ ] Images have meaningful `alt`, or `alt=""` when decorative
+- [ ] Nothing relies on colour alone
+- [ ] Still usable at 320px
+
+## 7. Tests
+
+- [ ] New behaviour has a test at the cheapest level that catches it
+- [ ] A bug fix has a test that failed before the fix
+- [ ] No assertion was weakened to get to green
+- [ ] No snapshot, no class-name assertion, no `waitForTimeout`
+
+## 8. Scope
+
+- [ ] Nothing was refactored that the task did not require
+- [ ] No new dependency, or a stated reason for it
+- [ ] No API surface invented "for later"
+
+## 9. Honesty of the report
+
+- [ ] `npm run verify` actually ran and actually passed
+- [ ] Anything untested, partial or guessed is named explicitly
+- [ ] Assumptions made are listed, not buried
+
+The failure mode this list exists to prevent is not ugly code. It is plausible
+code: correct-looking, well-formatted, and wrong in a way that only shows up in
+an order total.

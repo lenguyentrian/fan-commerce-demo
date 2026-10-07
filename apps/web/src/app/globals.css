@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+@import '@fc/ui/tokens.css';
+
+/*
+ * Tailwind 4 needs to be told where to look for class names when they live
+ * outside this app's own folder — otherwise the design system's classes get
+ * tree-shaken out of the final CSS.
+ */
+@source "../../src/**/*.{ts,tsx}";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--fc-surface-sunken);
+  color: var(--fc-text);
+  font-family: var(--font-sans);
+  /* Avoid layout shift when a scrollbar appears/disappears between routes. */
+  scrollbar-gutter: stable;
+}
+
+/* Images are fluid by default; a fixed width is opt-in. */
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}

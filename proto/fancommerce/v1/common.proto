@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package fancommerce.v1;
+
+// Money on the wire.
+//
+// Mirrors the Money value object in packages/core/src/domain/money.ts: an
+// integer count of minor units plus a currency code. Never a double, and
+// never a decimal string that has to be parsed.
+//
+// For VND the minor unit is the dong itself (0 decimal places), so
+// `amount: 450000` is 450.000 ₫. For USD it is cents.
+message Money {
+  // Integer minor units. int64 so a large order total cannot overflow.
+  int64 amount = 1;
+
+  // ISO 4217, e.g. "VND", "USD".
+  string currency = 2;
+}
+
+// Field-level validation detail, attached to an INVALID_ARGUMENT status.
+//
+// Keeps parity with the REST error body in packages/core/src/api/errors.ts, so
+// a form can populate per-field errors identically over either transport.
+message FieldViolation {
+  // Dotted path, e.g. "shipping_address.phone".
+  string field = 1;
+  // User-safe message. Never an internal detail.
+  string description = 2;
+}
+
+message ErrorDetail {
+  repeated FieldViolation field_violations = 1;
+}
